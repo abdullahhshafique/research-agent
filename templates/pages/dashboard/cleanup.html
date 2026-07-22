@@ -1,0 +1,68 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Cleanup - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">System Cleanup</h1>
+    
+    <!-- Cache Stats -->
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Cache Statistics</h2>
+        <div class="grid md:grid-cols-3 gap-4">
+            <div class="card p-4 rounded-lg">
+                <p class="text-sm text-gray-400">Total Entries</p>
+                <p class="text-2xl font-bold">{{ cache_stats.total_entries }}</p>
+            </div>
+            <div class="card p-4 rounded-lg">
+                <p class="text-sm text-gray-400">Expired Entries</p>
+                <p class="text-2xl font-bold text-yellow-400">{{ cache_stats.expired_entries }}</p>
+            </div>
+            <div class="card p-4 rounded-lg">
+                <p class="text-sm text-gray-400">Total Size</p>
+                <p class="text-2xl font-bold">{{ cache_stats.total_size_mb }} MB</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Cleanup Form -->
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Run Cleanup</h2>
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">PDF Retention (days)</label>
+                    <input type="number" name="pdf_days" value="{{ pdf_days }}" min="1" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Cache Retention (days)</label>
+                    <input type="number" name="cache_days" value="{{ cache_days }}" min="1" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Failed Query Retention (days)</label>
+                    <input type="number" name="failed_days" value="{{ failed_days }}" min="1" class="form-input">
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <input type="checkbox" name="dry_run" id="dry_run" class="w-4 h-4 rounded">
+                <label for="dry_run">Dry run (preview only, don't delete)</label>
+            </div>
+            
+            <button type="submit" class="px-6 py-3 rounded-lg bg-red-500 hover:bg-red-600 transition font-semibold">
+                Run Cleanup
+            </button>
+        </form>
+    </div>
+    
+    <!-- Output -->
+    {% if output %}
+    <div class="card rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Output</h2>
+        <pre class="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm font-mono text-green-400">{{ output }}</pre>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

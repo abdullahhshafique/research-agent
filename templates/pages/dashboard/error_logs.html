@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Error Logs - Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Error Log Viewer</h1>
+    
+    <!-- Stats Cards -->
+    <div class="grid md:grid-cols-4 gap-4 mb-6">
+        <div class="card rounded-xl p-4">
+            <p class="text-sm text-gray-400">Total Entries</p>
+            <p class="text-2xl font-bold">{{ stats.total }}</p>
+        </div>
+        <div class="card rounded-xl p-4">
+            <p class="text-sm text-gray-400">Errors</p>
+            <p class="text-2xl font-bold text-red-400">{{ stats.by_level.ERROR|default:0 }}</p>
+        </div>
+        <div class="card rounded-xl p-4">
+            <p class="text-sm text-gray-400">Warnings</p>
+            <p class="text-2xl font-bold text-yellow-400">{{ stats.by_level.WARNING|default:0 }}</p>
+        </div>
+        <div class="card rounded-xl p-4">
+            <p class="text-sm text-gray-400">Error Rate</p>
+            <p class="text-2xl font-bold {% if stats.error_rate > 5 %}text-red-400{% else %}text-green-400{% endif %}">
+                {{ stats.error_rate }}%
+            </p>
+        </div>
+    </div>
+    
+    <!-- Hourly Chart -->
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Hourly Activity (Last {{ hours }}h)</h2>
+        <canvas id="hourlyChart" height="80"></canvas>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card rounded-xl p-4 mb-6">
+        <form method="get" class="flex flex-wrap gap-4">
+            <div>
+                <select name="level" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Levels</option>
+                    {% for lvl in levels %}
+                    <option value="{{ lvl }}" {% if level == lvl %}selected{% endif %}>{{ lvl }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <input type="text" name="module" value="{{ module }}" placeholder="Filter module..." class="form-input">
+            </div>
+            <div class="flex-1">
+                <input type="text" name="q" value="{{ search }}" placeholder="Search messages..." class="form-input">
+            </div>
+            <div>
+                <select name="hours" class="form-select" onchange="this.form.submit()">
+                    <option value="1" {% if hours == 1 %}selected{% endif %}>1h</option>
+                    <option value="6" {% if hours == 6 %}selected{% endif %}>6h</option>
+                    <option value="24" {% if hours == 24 %}selected{% endif %}>24h</option>
+                    <option value="168" {% if hours == 168 %}selected{% endif %}>7d</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition">Filter</button>
+        </form>
+    </div>
+    
+    <!-- Log Entries -->
+    <div class="space-y-2">
+        {% for entry in entries %}
+        <div class="card rounded-lg p-4 {% if entry.level == 'ERROR' %}border-l-4 border-red-500{% elif entry.level == 'WARNING' %}border-l-4 border-yellow-500{% endif %}">
+            <div class="flex items-start justify-between">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3 mb-1">
+                        <span class="px-2 py-0.5 rounded text-xs font-mono
+                            {% if entry.level == 'ERROR' %}bg-red-900 text-red-400
+                            {% elif entry.level == 'WARNING' %}bg-yellow-900 text-yellow-400
+                            {% elif entry.level == 'INFO' %}bg-blue-900 text-blue-400
+                            {% else %}bg-gray-800 text-gray-400{% endif %}">
+                            {{ entry.level }}
+                        </span>
+                        <span class="text-sm text-gray-500 font-mono">{{ entry.module }}</span>
+                        <span class="text-sm text-gray-500">{{ entry.timestamp|slice:":19" }}</span>
+                    </div>
+                    <p class="text-gray-300 text-sm">{{ entry.message }}</p>
+                    {% if entry.exception %}
+                    <pre class="mt-2 p-3 bg-gray-900 rounded text-xs text-red-300 overflow-x-auto">{{ entry.exception|truncatechars:500 }}</pre>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card rounded-xl p-8 text-center text-gray-400">No log entries found</div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- FIX: Use json_script instead of |safe -->
+{{ stats.by_hour|json_script:"hourly-stats-data" }}
+
+<script>
+const hourlyData = JSON.parse(document.getElementById('hourly-stats-data').textContent);
+const labels = Object.keys(hourlyData).sort();
+const values = labels.map(l => hourlyData[l]);
+
+const canvas = document.getElementById('hourlyChart');
+const ctx = canvas.getContext('2d');
+canvas.width = canvas.offsetWidth;
+canvas.height = 200;
+
+const barWidth = (canvas.width - 40) / labels.length;
+const maxVal = Math.max(...values, 1);
+
+ctx.fillStyle = '#1E293B';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+labels.forEach((label, i) => {
+    const h = (values[i] / maxVal) * (canvas.height - 30);
+    const x = 20 + i * barWidth + barWidth * 0.1;
+    const y = canvas.height - h - 20;
+    
+    ctx.fillStyle = values[i] > 0 ? '#3B82F6' : '#334155';
+    ctx.fillRect(x, y, barWidth * 0.8, h);
+    
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, x + barWidth * 0.4, canvas.height - 5);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,275 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Research Status - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="card rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-xl font-bold">Research Query</h1>
+                <p class="text-gray-400 mt-1">{{ research.query_text }}</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="px-3 py-1 rounded-full text-sm 
+                    {% if research.status == 'completed' %}bg-green-900 text-green-400
+                    {% elif research.status == 'failed' %}bg-red-900 text-red-400
+                    {% elif research.status == 'processing' %}bg-blue-900 text-blue-400
+                    {% else %}bg-gray-800 text-gray-400{% endif %}">
+                    {{ research.status|title }}
+                </span>
+                {% if research.version > 1 %}
+                <span class="px-2 py-0.5 rounded text-xs bg-purple-900 text-purple-400">
+                    v{{ research.version }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-4 text-sm text-gray-400">
+            <span>Depth: {{ research.search_depth|title }}</span>
+            <span>Sources: {{ research.max_results }}</span>
+            <span>Model: {{ research.llm_model|title }}</span>
+            <span>{{ research.created_at|date:"M d, Y H:i" }}</span>
+        </div>
+    </div>
+    
+    {% if version_history|length > 1 %}
+    <div class="card rounded-xl p-4 mb-6">
+        <h3 class="text-sm font-semibold text-gray-400 mb-2">Version History</h3>
+        <div class="flex flex-wrap gap-2">
+            {% for v in version_history %}
+            <a href="{% url 'research:research_status' research.id %}" 
+               class="px-3 py-1 rounded-lg text-sm {% if v.id == research.id %}bg-blue-600 text-white{% else %}bg-gray-800 text-gray-400 hover:bg-gray-700{% endif %}">
+                v{{ v.version }} {% if v.is_latest %}(latest){% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if research.status == 'pending' or research.status == 'processing' %}
+    <div class="card rounded-xl p-6 mb-6" id="progress-container">
+        <h2 class="text-lg font-semibold mb-4">Processing</h2>
+        <div class="w-full bg-gray-700 rounded-full h-4 mb-4">
+            <div id="progress-bar" class="bg-blue-500 h-4 rounded-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+        <p id="progress-message" class="text-gray-400">Initializing...</p>
+        <div id="live-log" class="mt-4 space-y-2 text-sm font-mono text-gray-500"></div>
+    </div>
+    <form method="post" action="{% url 'research:research_cancel' research.id %}" class="mt-4" onsubmit="return confirm('Cancel this research?');">
+    {% csrf_token %}
+    <button type="submit" class="px-4 py-2 rounded-lg bg-red-900 text-red-400 hover:bg-red-800 transition text-sm">
+        Cancel Research
+    </button>
+</form>
+    
+    <script>
+(function() {
+    const queryId = {{ research.id }};
+    const progressBar = document.getElementById('progress-bar');
+    const progressMessage = document.getElementById('progress-message');
+    const liveLog = document.getElementById('live-log');
+    
+    let eventSource = null;
+    let reconnectAttempts = 0;
+    const maxReconnects = 10;
+    let reconnectTimeout = null;
+    
+    function connect() {
+        // Close existing connection
+        if (eventSource) {
+            eventSource.close();
+        }
+        
+        // Check for EventSource support
+        if (typeof EventSource === 'undefined') {
+            startLongPolling();
+            return;
+        }
+        
+        eventSource = new EventSource(`/research/${queryId}/stream/`);
+        
+        eventSource.addEventListener('status', function(e) {
+            reconnectAttempts = 0; // Reset on successful message
+            const data = JSON.parse(e.data);
+            updateUI(data);
+            appendLog(data.message);
+        });
+        
+        eventSource.addEventListener('heartbeat', function(e) {
+            // Heartbeat received, connection is alive
+            reconnectAttempts = 0;
+        });
+        
+        eventSource.addEventListener('complete', function(e) {
+            const data = JSON.parse(e.data);
+            eventSource.close();
+            appendLog("Redirecting to results...");
+            setTimeout(() => window.location.reload(), 1000);
+        });
+        
+        eventSource.addEventListener('error', function(e) {
+            if (eventSource.readyState === EventSource.CLOSED) {
+                attemptReconnect();
+            }
+        });
+        
+        eventSource.onopen = function() {
+            reconnectAttempts = 0;
+        };
+    }
+    
+    function attemptReconnect() {
+        if (reconnectAttempts >= maxReconnects) {
+            appendLog("Connection lost. Please refresh the page.", "error");
+            return;
+        }
+        
+        reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // Exponential backoff, max 30s
+        appendLog(`Reconnecting in ${delay/1000}s... (attempt ${reconnectAttempts}/${maxReconnects})`);
+        
+        clearTimeout(reconnectTimeout);
+        reconnectTimeout = setTimeout(connect, delay);
+    }
+    
+    function startLongPolling() {
+        // Fallback for browsers without EventSource (older IE, etc.)
+        appendLog("Using polling fallback...");
+        
+        function poll() {
+            fetch(`/research/${queryId}/stream/?poll=1`)
+                .then(r => r.json())
+                .then(data => {
+                    updateUI(data);
+                    appendLog(data.message);
+                    
+                    if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+                        setTimeout(() => window.location.reload(), 2000);
+                    } else {
+                        setTimeout(poll, 2000); // Poll every 2 seconds
+                    }
+                })
+                .catch(err => {
+                    appendLog("Polling error: " + err, "error");
+                    setTimeout(poll, 5000);
+                });
+        }
+        
+        poll();
+    }
+    
+    function updateUI(data) {
+        if (progressBar) {
+            progressBar.style.width = (data.progress || 0) + '%';
+            // Color based on status
+            progressBar.className = 'h-4 rounded-full transition-all duration-500 ' + 
+                (data.status === 'failed' ? 'bg-red-500' : 
+                 data.status === 'cancelled' ? 'bg-yellow-500' : 'bg-blue-500');
+        }
+        if (progressMessage) {
+            progressMessage.textContent = data.message || 'Processing...';
+            if (data.status === 'failed') {
+                progressMessage.classList.add('text-red-400');
+            }
+        }
+    }
+    
+    function appendLog(msg, type = 'info') {
+        if (!liveLog || !msg) return;
+        const entry = document.createElement('div');
+        const time = new Date().toLocaleTimeString();
+        entry.className = type === 'error' ? 'text-red-400' : 'text-gray-500';
+        entry.textContent = `[${time}] ${msg}`;
+        liveLog.appendChild(entry);
+        liveLog.scrollTop = liveLog.scrollHeight;
+    }
+    
+    // Start connection
+    connect();
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (eventSource) eventSource.close();
+        clearTimeout(reconnectTimeout);
+    });
+})();
+    </script>
+    {% endif %}
+    
+    {% if research.status == 'completed' %}
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Summary</h2>
+        <div class="prose max-w-none text-gray-300">
+            {{ research.summary|linebreaks }}
+        </div>
+    </div>
+    
+    {% if research.final_insight %}
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Final Insight</h2>
+        <p class="text-gray-300">{{ research.final_insight }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Sources ({{ sources|length }})</h2>
+        <div class="space-y-3">
+            {% for source in sources %}
+            <div class="p-4 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <a href="{{ source.url }}" target="_blank" class="text-blue-400 hover:underline font-medium">{{ source.title|default:"Untitled" }}</a>
+                        <p class="text-sm text-gray-500 mt-1">{{ source.domain }}</p>
+                    </div>
+                    <span class="text-sm text-gray-500">Score: {{ source.score|floatformat:2 }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="flex flex-wrap gap-4">
+        <a href="{% url 'reports:report_download' research.id %}" class="px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+            </svg>
+            <span>Download PDF</span>
+        </a>
+        <a href="{% url 'reports:report_preview' research.id %}" class="px-6 py-3 rounded-lg border border-gray-600 hover:border-gray-400 transition flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+            </svg>
+            <span>Preview</span>
+        </a>
+        <form method="post" action="{% url 'research:create_version' research.id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-6 py-3 rounded-lg border border-gray-600 hover:border-gray-400 transition flex items-center space-x-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+                </svg>
+                <span>New Version</span>
+            </button>
+        </form>
+        <a href="{% url 'research:research_submit' %}" class="px-6 py-3 rounded-lg border border-gray-600 hover:border-gray-400 transition">
+            New Research
+        </a>
+    </div>
+    {% endif %}
+    
+    {% if research.status == 'failed' %}
+    <div class="card rounded-xl p-6 mb-6 border border-red-700">
+        <h2 class="text-lg font-semibold text-red-400 mb-2">Error</h2>
+        <p class="text-gray-300">{{ research.error_message|default:"An unknown error occurred." }}</p>
+        <form method="post" action="{% url 'research:research_retry' research.id %}" class="mt-4">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition">
+                Retry as New Version
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

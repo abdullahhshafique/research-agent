@@ -1,0 +1,88 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}API Keys - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">API Key Management</h1>
+
+    <!-- Key Status Cards -->
+    <div class="grid md:grid-cols-3 gap-4 mb-8">
+        {% for key in keys %}
+        <div class="card rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-lg">{{ key.key_name|upper }}</h3>
+                <span class="px-2 py-1 rounded text-xs {% if key.is_active %}bg-green-900 text-green-400{% else %}bg-red-900 text-red-400{% endif %}">
+                    {% if key.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+            <p class="text-sm text-gray-400 mb-2">
+                {% if key.key_value %}
+                Key: {{ key.key_value|slice:":8" }}...{{ key.key_value|slice:"-4:" }}
+                {% else %}
+                No key set
+                {% endif %}
+            </p>
+            <p class="text-xs text-gray-500">
+                Last rotated: {{ key.rotated_at|date:"M d, Y H:i"|default:"Never" }}
+            </p>
+            {% if key.rotated_by %}
+            <p class="text-xs text-gray-500">By: {{ key.rotated_by.username }}</p>
+            {% endif %}
+        </div>
+        {% empty %}
+        <div class="card rounded-xl p-6 text-center col-span-3">
+            <p class="text-gray-400">No API keys configured. Sync from environment to begin.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Rotation Forms -->
+    <div class="card rounded-xl p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Rotate API Keys</h2>
+        <p class="text-sm text-gray-400 mb-4">Update keys at runtime without restarting the server.</p>
+
+        <div class="space-y-4">
+            <form method="post" action="{% url 'dashboard:rotate_api_key' %}" class="flex gap-4 items-end">
+                {% csrf_token %}
+                <div class="flex-1">
+                    <label class="block text-sm font-medium mb-1">Key Type</label>
+                    <select name="key_name" class="form-select" required>
+                        <option value="groq">GROQ_API_KEY</option>
+                        <option value="tavily">TAVILY_API_KEY</option>
+                        <option value="google">GOOGLE_API_KEY</option>
+                    </select>
+                </div>
+                <div class="flex-[2]">
+                    <label class="block text-sm font-medium mb-1">New Key Value</label>
+                    <input type="password" name="new_value" class="form-input" placeholder="Enter new API key" required>
+                </div>
+                <button type="submit" class="px-6 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition font-semibold">
+                    Rotate Key
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Environment Status -->
+    <div class="card rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Environment Status</h2>
+        <div class="space-y-3">
+            {% for name, configured in env_status.items %}
+            <div class="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                <span class="font-mono text-sm">{{ name }}</span>
+                <span class="px-3 py-1 rounded-full text-sm {% if configured %}bg-green-900 text-green-400{% else %}bg-red-900 text-red-400{% endif %}">
+                    {% if configured %}Configured{% else %}Missing{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-4 p-4 bg-gray-800 rounded-lg font-mono text-sm">
+            <p class="text-gray-400">To update via .env file, restart the server:</p>
+            <p class="text-green-400 mt-2">GROQ_API_KEY=your_key_here</p>
+            <p class="text-green-400">TAVILY_API_KEY=your_key_here</p>
+            <p class="text-green-400">GOOGLE_API_KEY=your_key_here</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

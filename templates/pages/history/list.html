@@ -1,0 +1,250 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}History - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Research History</h1>
+            <p class="text-gray-400">{{ total_count }} total entries</p>
+        </div>
+        <a href="{% url 'research:research_submit' %}" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition">
+            New Research
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card rounded-xl p-4 mb-6">
+        <form method="get" class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <input 
+                    type="text" 
+                    name="q" 
+                    value="{{ search_query }}"
+                    placeholder="Search history..."
+                    class="form-input"
+                >
+            </div>
+            <div>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Status</option>
+                    <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="failed" {% if status_filter == 'failed' %}selected{% endif %}>Failed</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                </select>
+            </div>
+            <div>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                    <input 
+                        type="checkbox" 
+                        name="favorites" 
+                        value="1" 
+                        {% if show_favorites %}checked{% endif %}
+                        onchange="this.form.submit()"
+                        class="w-4 h-4 rounded"
+                    >
+                    <span>Favorites Only</span>
+                </label>
+            </div>
+            <button type="submit" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition">
+                Filter
+            </button>
+        </form>
+    </div>
+
+    <!-- Bulk Actions -->
+    <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+            <input type="checkbox" id="select-all" class="w-4 h-4 rounded">
+            <label for="select-all" class="text-sm text-gray-400">Select All</label>
+        </div>
+        <button id="bulk-delete-btn" class="px-4 py-2 rounded-lg bg-red-900 text-red-400 hover:bg-red-800 transition text-sm hidden">
+            Delete Selected (<span id="selected-count">0</span>)
+        </button>
+    </div>
+
+    <!-- History List -->
+    <div class="space-y-3" id="history-list">
+        {% for item in page_obj %}
+        <div class="card rounded-xl p-5 hover:bg-gray-800 transition history-item" data-id="{{ item.id }}">
+            <div class="flex items-start gap-4">
+                <input type="checkbox" class="history-checkbox w-4 h-4 rounded mt-1" value="{{ item.id }}">
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3 mb-2">
+                        <h3 class="font-semibold text-lg">{{ item.query_text|truncatechars:80 }}</h3>
+                        <span class="px-2 py-0.5 rounded text-xs 
+                            {% if item.status == 'completed' %}bg-green-900 text-green-400
+                            {% elif item.status == 'failed' %}bg-red-900 text-red-400
+                            {% elif item.status == 'processing' %}bg-blue-900 text-blue-400
+                            {% else %}bg-gray-800 text-gray-400{% endif %}">
+                            {{ item.status|title }}
+                        </span>
+                        {% if item.is_fav %}
+                        <svg class="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                        <span>{{ item.created_at|date:"M d, Y H:i" }}</span>
+                        <span>{{ item.sources.count }} sources</span>
+                        {% if item.processing_time_ms %}
+                        <span>{{ item.processing_time_ms }}ms</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 ml-4">
+                    <a href="{% url 'research:research_status' item.id %}" class="p-2 rounded-lg hover:bg-gray-700 transition" title="View">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                    </a>
+                    {% if item.status == 'completed' %}
+                    <a href="{% url 'reports:report_download' item.id %}" class="p-2 rounded-lg hover:bg-gray-700 transition" title="Download PDF">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                    </a>
+                    {% endif %}
+                    <button onclick="toggleFavorite({{ item.id }})" class="p-2 rounded-lg hover:bg-gray-700 transition" title="Toggle Favorite">
+                        <svg class="w-5 h-5 {% if item.is_fav %}text-yellow-500{% else %}text-gray-500{% endif %}" fill="{% if item.is_fav %}currentColor{% else %}none{% endif %}" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="saveAsTemplate({{ item.id }}, '{{ item.query_text|escapejs }}')" class="p-2 rounded-lg hover:bg-blue-900 transition text-blue-400" title="Save as Template">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path>
+                        </svg>
+                    </button>
+                    <form method="post" action="{% url 'history:delete_history' item.id %}" class="inline" onsubmit="return confirm('Delete this entry?');">
+                        {% csrf_token %}
+                        <button type="submit" class="p-2 rounded-lg hover:bg-red-900 transition text-red-400" title="Delete">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="card rounded-xl p-8 text-center">
+            <p class="text-gray-400 text-lg">No research history yet.</p>
+            <a href="{% url 'research:research_submit' %}" class="inline-block mt-4 px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition">
+                Start Your First Research
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="flex justify-center mt-8 space-x-2">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if status_filter != 'all' %}&status={{ status_filter }}{% endif %}{% if show_favorites %}&favorites=1{% endif %}" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+            Previous
+        </a>
+        {% endif %}
+        <span class="px-4 py-2 rounded-lg bg-gray-800">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if status_filter != 'all' %}&status={{ status_filter }}{% endif %}{% if show_favorites %}&favorites=1{% endif %}" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">
+            Next
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function toggleFavorite(queryId) {
+    // FIX: Use Django URL reverse instead of hardcoded path
+    const url = "{% url 'history:toggle_favorite' 0 %}".replace('0', queryId);
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            location.reload();
+        }
+    });
+}
+
+(function() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.history-checkbox');
+    const bulkBtn = document.getElementById('bulk-delete-btn');
+    const countSpan = document.getElementById('selected-count');
+
+    function updateCount() {
+        const checked = document.querySelectorAll('.history-checkbox:checked');
+        countSpan.textContent = checked.length;
+        bulkBtn.classList.toggle('hidden', checked.length === 0);
+    }
+
+    selectAll?.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateCount();
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateCount);
+    });
+
+    bulkBtn?.addEventListener('click', async function() {
+        const ids = Array.from(document.querySelectorAll('.history-checkbox:checked')).map(cb => cb.value);
+
+        if (!confirm(`Delete ${ids.length} items? This cannot be undone.`)) return;
+
+        const response = await fetch("{% url 'history:bulk_delete_history' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: JSON.stringify({ids: ids})
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+            ids.forEach(id => {
+                document.querySelector(`.history-item[data-id="${id}"]`)?.remove();
+            });
+            updateCount();
+        }
+    });
+})();
+
+function saveAsTemplate(queryId, queryText) {
+    const name = prompt('Enter template name:', queryText.substring(0, 50));
+    if (!name) return;
+
+    const url = "{% url 'history:save_as_template' 0 %}".replace('0', queryId);
+
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({name: name})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert(data.message);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

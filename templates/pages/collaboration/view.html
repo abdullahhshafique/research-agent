@@ -1,0 +1,24 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Shared Report - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="card rounded-xl p-6 mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold">Shared Report</h1>
+                <p class="text-gray-400 text-sm mt-1">Shared by {{ link.report.query.user.username }}</p>
+            </div>
+            <span class="text-sm text-gray-500">{{ link.view_count }} views</span>
+        </div>
+    </div>
+    
+    <div class="card rounded-xl p-8">
+        <h2 class="text-lg font-semibold mb-4">{{ link.report.query.query_text }}</h2>
+        <div class="prose max-w-none text-gray-300 whitespace-pre-wrap">
+            {{ link.report.query.summary|linebreaks }}
+        </div>
+    </div>
+</div>
+{% endblock %}

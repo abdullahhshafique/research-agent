@@ -1,0 +1,37 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Page Not Found - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto text-center py-20" role="alert" aria-live="polite">
+    <div class="w-24 h-24 rounded-full bg-gray-800 flex items-center justify-center mx-auto mb-6" aria-hidden="true">
+        <svg class="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+    </div>
+    <h1 class="text-6xl font-bold text-gray-700 mb-4">404</h1>
+    <h2 class="text-2xl font-bold mb-4">Page Not Found</h2>
+    <p class="text-gray-400 mb-4">The page you're looking for doesn't exist or has been moved.</p>
+
+    <div class="bg-gray-800 rounded-lg p-4 mb-8 text-left">
+        <p class="text-sm text-gray-300 mb-2"><strong>What you can do:</strong></p>
+        <ul class="text-sm text-gray-400 space-y-1 list-disc list-inside">
+            <li>Check the URL for typos</li>
+            <li>Return to the home page</li>
+            <li>Use the navigation menu above</li>
+            <li>Search your research history</li>
+        </ul>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="{% url 'accounts:home' %}" class="px-6 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 transition">
+            Go Home
+        </a>
+        {% if user.is_authenticated %}
+        <a href="{% url 'history:history_list' %}" class="px-6 py-3 rounded-lg border border-gray-600 hover:border-gray-400 transition">
+            View History
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

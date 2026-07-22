@@ -1,0 +1,91 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}New Research - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto animate-fade-in">
+    <div class="card rounded-xl p-8">
+        <div class="text-center mb-8">
+            <div class="w-16 h-16 rounded-full bg-purple-900 flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+            </div>
+            <h1 class="text-2xl font-bold">What would you like to research?</h1>
+            <p class="text-gray-400 mt-2">Enter a topic and we'll generate a comprehensive report</p>
+        </div>
+        
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Query Input -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Research Query</label>
+                <textarea 
+                    name="query" 
+                    rows="3" 
+                    class="form-input resize-none" 
+                    placeholder="e.g., Latest advances in AI agents 2026"
+                    maxlength="{{ max_query_length }}"
+                    required
+                ></textarea>
+                <p class="text-xs text-gray-500 mt-1">Max {{ max_query_length }} characters</p>
+            </div>
+            
+            <!-- Options -->
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Search Depth</label>
+                    <select name="search_depth" class="form-select">
+                        <option value="advanced" selected>Advanced (detailed)</option>
+                        <option value="basic">Basic (faster)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Sources</label>
+                    <select name="max_results" class="form-select">
+                        <option value="3">3 sources</option>
+                        <option value="5" selected>5 sources</option>
+                        <option value="7">7 sources</option>
+                        <option value="10">10 sources</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">AI Model</label>
+                    <select name="llm_model" class="form-select">
+                        <option value="groq" selected>Groq (Llama 3.3)</option>
+                        <option value="gemini">Gemini (Flash)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Submit -->
+            <button type="submit" class="w-full py-4 rounded-lg bg-blue-500 hover:bg-blue-600 font-semibold text-lg transition flex items-center justify-center space-x-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span>Generate Report</span>
+            </button>
+        </form>
+        
+        <!-- Quick Start -->
+        <div class="mt-8 pt-6 border-t border-gray-700">
+            <p class="text-sm text-gray-400 mb-3">Quick Start:</p>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="setQuery('Latest advances in AI agents 2026')" class="px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-sm transition">AI Agents</button>
+                <button onclick="setQuery('Quantum computing breakthroughs 2026')" class="px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-sm transition">Quantum Computing</button>
+                <button onclick="setQuery('Climate tech startups funding 2026')" class="px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-sm transition">Climate Tech</button>
+                <button onclick="setQuery('Space exploration missions 2026')" class="px-3 py-1 rounded-full bg-gray-800 hover:bg-gray-700 text-sm transition">Space</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setQuery(text) {
+    document.querySelector('textarea[name="query"]').value = text;
+}
+</script>
+{% endblock %}

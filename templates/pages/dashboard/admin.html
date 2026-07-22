@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - AI Research Agent{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Admin Dashboard</h1>
+    
+    <div class="grid md:grid-cols-4 gap-4 mb-8">
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Total Users</p>
+            <p class="text-3xl font-bold mt-2">{{ total_users }}</p>
+        </div>
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Total Queries</p>
+            <p class="text-3xl font-bold mt-2">{{ total_queries }}</p>
+        </div>
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Reports Generated</p>
+            <p class="text-3xl font-bold mt-2">{{ total_reports }}</p>
+        </div>
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Shared Links</p>
+            <p class="text-3xl font-bold mt-2">{{ total_shares }}</p>
+        </div>
+    </div>
+    
+    <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Success Rate</p>
+            <p class="text-3xl font-bold mt-2 text-green-400">{{ success_rate }}%</p>
+        </div>
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Avg Processing Time</p>
+            <p class="text-3xl font-bold mt-2 text-blue-400">{{ avg_processing }}s</p>
+        </div>
+        <div class="card rounded-xl p-6">
+            <p class="text-sm text-gray-400">Queries Today</p>
+            <p class="text-3xl font-bold mt-2">{{ queries_today }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ queries_week }} this week</p>
+        </div>
+    </div>
+    
+    <div class="card rounded-xl p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4">Last 7 Days Activity</h2>
+        <canvas id="activityChart" height="100"></canvas>
+    </div>
+    
+    <div class="grid md:grid-cols-2 gap-6 mb-8">
+        <div class="card rounded-xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Top Users</h2>
+            <div class="space-y-3">
+                {% for user in top_users %}
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-blue-900 flex items-center justify-center text-sm font-bold">
+                            {{ user.username|first|upper }}
+                        </div>
+                        <span>{{ user.username }}</span>
+                    </div>
+                    <span class="text-sm text-gray-400">{{ user.query_count }} queries</span>
+                </div>
+                {% empty %}
+                <p class="text-gray-400">No users yet</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="card rounded-xl p-6">
+            <h2 class="text-lg font-semibold mb-4">Recent Queries</h2>
+            <div class="space-y-3 max-h-80 overflow-y-auto">
+                {% for query in recent_queries %}
+                <div class="p-3 rounded-lg bg-gray-800">
+                    <p class="text-sm font-medium truncate">{{ query.query_text }}</p>
+                    <div class="flex items-center justify-between mt-1 text-xs text-gray-500">
+                        <span>{{ query.user.username }}</span>
+                        <span class="
+                            {% if query.status == 'completed' %}text-green-400
+                            {% elif query.status == 'failed' %}text-red-400
+                            {% else %}text-blue-400{% endif %}
+                        ">{{ query.status }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-400">No queries yet</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="card rounded-xl p-6">
+        <h2 class="text-lg font-semibold mb-4">Quick Links</h2>
+        <div class="flex flex-wrap gap-3">
+            <a href="{% url 'dashboard:user_management' %}" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">User Management</a>
+            <a href="{% url 'dashboard:api_keys' %}" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">API Keys</a>
+            <a href="{% url 'dashboard:cleanup_view' %}" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">System Cleanup</a>
+            <a href="/admin/" class="px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition">Django Admin</a>
+        </div>
+    </div>
+</div>
+
+<!-- FIX: Use json_script filter instead of |safe to prevent XSS -->
+{{ daily_stats|json_script:"daily-stats-data" }}
+
+<script>
+const data = JSON.parse(document.getElementById('daily-stats-data').textContent);
+
+const canvas = document.getElementById('activityChart');
+const ctx = canvas.getContext('2d');
+
+const labels = data.map(d => d.date);
+const counts = data.map(d => d.count);
+const completed = data.map(d => d.completed);
+const failed = data.map(d => d.failed);
+
+const maxVal = Math.max(...counts, 1);
+const barWidth = 40;
+const spacing = 20;
+const chartHeight = 200;
+const chartWidth = labels.length * (barWidth + spacing);
+
+canvas.width = chartWidth;
+canvas.height = chartHeight + 40;
+
+ctx.fillStyle = '#1E293B';
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+labels.forEach((label, i) => {
+    const x = i * (barWidth + spacing) + spacing;
+    const h = (counts[i] / maxVal) * chartHeight;
+    const y = chartHeight - h;
+    
+    ctx.fillStyle = '#3B82F6';
+    ctx.fillRect(x, y, barWidth, h);
+    
+    ctx.fillStyle = '#94A3B8';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label.substring(5), x + barWidth/2, chartHeight + 20);
+    
+    ctx.fillStyle = '#F1F5F9';
+    ctx.fillText(counts[i], x + barWidth/2, y - 5);
+});
+</script>
+{% endblock %}

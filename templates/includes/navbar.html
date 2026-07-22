@@ -1,0 +1,105 @@
+﻿{% load static %}
+<nav class="card border-b" role="navigation" aria-label="Main navigation">
+    <div class="container mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+            <a href="{% url 'accounts:home' %}" class="flex items-center space-x-2" aria-label="AI Research Agent Home">
+                <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                </svg>
+                <span class="text-xl font-bold">AI Research Agent</span>
+            </a>
+
+            <div class="hidden md:flex items-center space-x-6" role="menubar">
+                <a href="{% url 'accounts:home' %}" class="hover:text-blue-400 transition" role="menuitem">Home</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'research:research_submit' %}" class="hover:text-blue-400 transition" role="menuitem">Research</a>
+                    <a href="{% url 'history:history_list' %}" class="hover:text-blue-400 transition" role="menuitem">History</a>
+                    <a href="{% url 'templates:templates_list' %}" class="hover:text-blue-400 transition" role="menuitem">Templates</a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'dashboard:admin_dashboard' %}" class="hover:text-purple-400 transition" role="menuitem">Admin</a>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <button 
+                    id="theme-toggle" 
+                    class="p-2 rounded-lg hover:bg-gray-700 transition" 
+                    aria-label="Toggle dark/light theme"
+                    title="Toggle theme"
+                    type="button"
+                >
+                    <svg id="theme-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+
+                <button 
+                    id="mobile-menu-btn" 
+                    class="md:hidden p-2 rounded-lg hover:bg-gray-700 transition"
+                    aria-label="Toggle mobile menu"
+                    aria-expanded="false"
+                    aria-controls="mobile-menu"
+                    type="button"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+
+                {% if user.is_authenticated %}
+                    <div class="hidden md:block relative group">
+                        <button 
+                            class="flex items-center space-x-2 hover:text-blue-400 transition"
+                            aria-haspopup="true"
+                            aria-expanded="false"
+                            aria-label="User menu: {{ user.username }}"
+                            type="button"
+                        >
+                            <span>{{ user.username }}</span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div class="absolute right-0 mt-2 w-48 card rounded-lg shadow-lg hidden group-hover:block z-50" role="menu">
+                            <a href="{% url 'accounts:profile' %}" class="block px-4 py-2 hover:bg-gray-700 rounded-t-lg" role="menuitem">Profile</a>
+                            {% if user.is_staff %}
+                            <a href="{% url 'dashboard:admin_dashboard' %}" class="block px-4 py-2 hover:bg-gray-700" role="menuitem">Dashboard</a>
+                            {% endif %}
+                            <a href="{% url 'accounts:logout' %}" class="block px-4 py-2 hover:bg-gray-700 rounded-b-lg text-red-400" role="menuitem">Logout</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="hidden md:flex items-center space-x-3">
+                        <a href="{% url 'accounts:login' %}" class="px-4 py-2 rounded-lg border border-blue-500 hover:bg-blue-500 hover:text-white transition">Login</a>
+                        <a href="{% url 'accounts:register' %}" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 transition">Register</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div 
+            id="mobile-menu" 
+            class="hidden md:hidden mt-4 pb-4 border-t border-gray-700 pt-4"
+            role="menu"
+            aria-label="Mobile navigation"
+        >
+            <div class="flex flex-col space-y-3">
+                <a href="{% url 'accounts:home' %}" class="hover:text-blue-400 transition" role="menuitem">Home</a>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'research:research_submit' %}" class="hover:text-blue-400 transition" role="menuitem">Research</a>
+                    <a href="{% url 'history:history_list' %}" class="hover:text-blue-400 transition" role="menuitem">History</a>
+                    <a href="{% url 'templates:templates_list' %}" class="hover:text-blue-400 transition" role="menuitem">Templates</a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'dashboard:admin_dashboard' %}" class="hover:text-purple-400 transition" role="menuitem">Admin</a>
+                    {% endif %}
+                    <a href="{% url 'accounts:profile' %}" class="hover:text-blue-400 transition" role="menuitem">Profile</a>
+                    <a href="{% url 'accounts:logout' %}" class="text-red-400 hover:text-red-300 transition" role="menuitem">Logout</a>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="hover:text-blue-400 transition" role="menuitem">Login</a>
+                    <a href="{% url 'accounts:register' %}" class="hover:text-blue-400 transition" role="menuitem">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
