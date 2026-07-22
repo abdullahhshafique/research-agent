@@ -1,30 +1,26 @@
 """
-Django settings for AI Research Agent project - Production Ready.
+Django settings for AI Research Agent project - Fly.io Ready.
 """
 
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import dj_database_url
-
-# Load environment variables
-env_path = Path(__file__).resolve().parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-in-production')
+# Load environment variables
+load_dotenv(BASE_DIR / ".env", override=True)
 
-# SECURITY WARNING: don't run with debug turned on in production!
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-# Add Render domain automatically
-RENDER_EXTERNAL_HOSTNAME = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+# Add Fly.io domain
+FLY_APP_NAME = os.environ.get('FLY_APP_NAME', '')
+if FLY_APP_NAME:
+    ALLOWED_HOSTS.append(f'{FLY_APP_NAME}.fly.dev')
+    ALLOWED_HOSTS.append('*')  # For Fly.io internal health checks
 
 # Application definition
 DJANGO_APPS = [
@@ -84,20 +80,19 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Database - Use PostgreSQL on Render, SQLite for local dev
+# Database - SQLite with persistent volume on Fly.io
 DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'data' / 'db.sqlite3',  # Persistent volume path
+    }
 }
 
-# Cache configuration (required for rate limiting)
+# Cache configuration
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': BASE_DIR / 'cache' / 'django_cache',
     }
 }
 
@@ -141,7 +136,7 @@ LOGOUT_REDIRECT_URL = '/'
 # Messages
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-# Email settings - Use console in dev, SMTP in production
+# Email settings
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@airesearchagent.com')
 
@@ -196,23 +191,19 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],  # Console only on Fly.io
             'level': 'INFO',
             'propagate': True,
         },
         'apps': {
-            'handlers': ['file', 'console'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': True,
         },
     },
 }
 
-# Create logs directory
-LOGS_DIR = BASE_DIR / 'logs'
-LOGS_DIR.mkdir(exist_ok=True)
-
-# Security settings
+# Security settings for production
 if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
