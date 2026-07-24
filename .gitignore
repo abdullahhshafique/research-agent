@@ -43,3 +43,10 @@ logs/
 
 # Backup files
 *.bak
+
+# TLS certificates / private keys - never commit these
+cert.crt
+cert.key
+*.pem
+*.crt
+*.key
