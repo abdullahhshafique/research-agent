@@ -1,5 +1,5 @@
 """
-Django settings for AI Research Agent project - Production Ready.
+Django settings for AI Research Agent project - Render Ready.
 """
 
 import os
@@ -7,17 +7,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
 
-# Load environment variables
-env_path = Path(__file__).resolve().parent.parent / '.env'
-load_dotenv(dotenv_path=env_path)
-
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me-in-production')
+# Load environment variables
+load_dotenv(BASE_DIR / ".env", override=True)
 
-# SECURITY WARNING: don't run with debug turned on in production!
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-me')
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
@@ -91,7 +87,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 
-# Database - Use PostgreSQL on Render, SQLite for local dev
+# Database - PostgreSQL on Render via DATABASE_URL, SQLite locally
 DATABASES = {
     'default': dj_database_url.config(
         default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
@@ -100,7 +96,7 @@ DATABASES = {
     )
 }
 
-# Cache configuration (required for rate limiting)
+# Cache configuration
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -155,7 +151,7 @@ LOGOUT_REDIRECT_URL = '/'
 # Messages
 MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
-# Email settings - Use console in dev, SMTP in production
+# Email settings
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@airesearchagent.com')
 
@@ -185,10 +181,7 @@ CSP_FRAME_ANCESTORS = ["'none'"]
 RATE_LIMIT_ANONYMOUS = int(os.getenv('RATE_LIMIT_ANONYMOUS', '60'))
 RATE_LIMIT_AUTHENTICATED = int(os.getenv('RATE_LIMIT_AUTHENTICATED', '300'))
 
-# Logging
-# In production (DEBUG=False) log to console only - the hosting filesystem
-# is ephemeral, so file logs are lost on every deploy/restart. Locally we
-# also write to a file for convenience.
+# Logging - console only in production (Render filesystem is ephemeral)
 _LOG_HANDLERS = ['console'] if not DEBUG else ['file', 'console']
 
 LOGGING = {
